@@ -1,0 +1,44 @@
+{
+  "name": "@allvalue/open-cli",
+  "version": "1.1.0",
+  "description": "AllValue GraphQL schema CLI：参数说明、JSON 校验与 helper 列举",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "allvalue-open": "./dist/cli.js"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "!dist/test"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "tsc && node --test dist/test/*.test.js"
+  },
+  "keywords": [
+    "allvalue",
+    "graphql",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
+  }
+}
