@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { CACHE_DIR, getAdminSchemaCachePath } from "./config.js";
+import { httpPostJson } from "./http.js";
 import type {
   IntrospectionSchema,
   IntrospectionType,
@@ -89,27 +90,23 @@ function writeCachedSchema(cachePath: string, schema: IntrospectionSchema): void
 }
 
 async function fetchAdminSchema(token: string): Promise<IntrospectionSchema> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
-  try {
-    const res = await fetch(ADMIN_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Custom-AllValue-Access-Token": token,
-      },
-      body: INTROSPECTION_BODY,
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`Schema fetch failed: HTTP ${res.status}`);
-    const json = await res.json() as Record<string, unknown>;
-    if (!json?.data || !(json.data as Record<string, unknown>)?.__schema) {
-      throw new Error(`Schema fetch returned unexpected structure: ${JSON.stringify(json).slice(0, 200)}`);
-    }
-    return json as unknown as IntrospectionSchema;
-  } finally {
-    clearTimeout(timer);
+  const res = await httpPostJson(
+    ADMIN_ENDPOINT,
+    {
+      "Content-Type": "application/json",
+      "Custom-AllValue-Access-Token": token,
+    },
+    INTROSPECTION_BODY,
+    15000,
+  );
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`Schema fetch failed: HTTP ${res.status}`);
   }
+  const json = JSON.parse(res.body) as Record<string, unknown>;
+  if (!json?.data || !(json.data as Record<string, unknown>)?.__schema) {
+    throw new Error(`Schema fetch returned unexpected structure: ${JSON.stringify(json).slice(0, 200)}`);
+  }
+  return json as unknown as IntrospectionSchema;
 }
 
 export async function loadAdminSchema(token: string): Promise<IntrospectionSchema> {

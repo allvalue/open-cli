@@ -16,6 +16,7 @@ import { formatOperationHelp, formatOperationsList } from "./format-help.js";
 import { parseJsonSafe, validateFieldArguments } from "./validate.js";
 import { buildGraphqlDocument } from "./build-query.js";
 import { loadConfig, getAuthToken, saveAuthData, CONFIG_PATH, getAdminSchemaCachePath } from "./config.js";
+import { httpPostJson } from "./http.js";
 
 function readFileArg(path: string, label: string): string {
   try { return readFileSync(path, "utf8").trim(); }
@@ -40,26 +41,22 @@ async function execGraphql(
   variables: unknown,
   endpoint: string = ADMIN_ENDPOINT,
 ): Promise<void> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
-  try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Custom-AllValue-Access-Token": token,
-      },
-      body: JSON.stringify({ query, variables }),
-      signal: controller.signal,
-    });
-    const text = await res.text();
-    let json: unknown;
-    try { json = JSON.parse(text); } catch { json = text; }
-    if (!res.ok) { console.error(`HTTP ${res.status}:`, text); process.exit(1); }
-    console.log(JSON.stringify(json, null, 2));
-  } finally {
-    clearTimeout(timer);
+  const res = await httpPostJson(
+    endpoint,
+    {
+      "Content-Type": "application/json",
+      "Custom-AllValue-Access-Token": token,
+    },
+    JSON.stringify({ query, variables }),
+    30000,
+  );
+  let json: unknown;
+  try { json = JSON.parse(res.body); } catch { json = res.body; }
+  if (res.status < 200 || res.status >= 300) {
+    console.error(`HTTP ${res.status}:`, res.body);
+    process.exit(1);
   }
+  console.log(JSON.stringify(json, null, 2));
 }
 
 function ask(question: string): Promise<string> {
@@ -108,27 +105,21 @@ async function handleAuth(): Promise<void> {
     process.exit(1);
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
-  try {
-    const res = await fetch(AUTH_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ domain, accountNo, password }),
-      signal: controller.signal,
-    });
-    const json = await res.json() as { code: number; success: boolean; data?: { accessToken: string; appId: number; clientId: string; clientSecret: string; kdtId: number; primaryDomain: string }; message?: string };
-    if (!json.success || !json.data) {
-      console.error(`认证失败: ${json.message ?? "未知错误"}`);
-      process.exit(1);
-    }
-    saveAuthData(json.data);
-    console.log(`✔ 认证成功，AccessToken 已保存到 ${CONFIG_PATH}`);
-    console.log(`  primaryDomain: ${json.data.primaryDomain}`);
-    console.log(`  kdtId: ${json.data.kdtId}`);
-  } finally {
-    clearTimeout(timer);
+  const res = await httpPostJson(
+    AUTH_ENDPOINT,
+    { "Content-Type": "application/json" },
+    JSON.stringify({ domain, accountNo, password }),
+    15000,
+  );
+  const json = JSON.parse(res.body) as { code: number; success: boolean; data?: { accessToken: string; appId: number; clientId: string; clientSecret: string; kdtId: number; primaryDomain: string }; message?: string };
+  if (!json.success || !json.data) {
+    console.error(`认证失败: ${json.message ?? "未知错误"}`);
+    process.exit(1);
   }
+  saveAuthData(json.data);
+  console.log(`✔ 认证成功，AccessToken 已保存到 ${CONFIG_PATH}`);
+  console.log(`  primaryDomain: ${json.data.primaryDomain}`);
+  console.log(`  kdtId: ${json.data.kdtId}`);
 }
 
 function printGlobalHelp(): void {
