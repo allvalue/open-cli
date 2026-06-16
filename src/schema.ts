@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, statSync } from "node:fs";
 import { CACHE_DIR, getAdminSchemaCachePath } from "./config.js";
 import { httpPostJson } from "./http.js";
 import type {
@@ -109,14 +109,51 @@ async function fetchAdminSchema(token: string): Promise<IntrospectionSchema> {
   return json as unknown as IntrospectionSchema;
 }
 
-export async function loadAdminSchema(token: string): Promise<IntrospectionSchema> {
+/** 缓存有效期：超过则自动重新拉取（失败时降级使用旧缓存）。 */
+const SCHEMA_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** 缓存文件年龄（毫秒）；文件不存在返回 null。 */
+export function schemaCacheAgeMs(cachePath: string): number | null {
+  try {
+    return Date.now() - statSync(cachePath).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadAdminSchema(
+  token: string,
+  opts: { forceRefresh?: boolean } = {},
+): Promise<IntrospectionSchema> {
   const cachePath = getAdminSchemaCachePath();
   const cached = readCachedSchema(cachePath);
-  if (cached) return cached;
-  console.error("正在拉取 schema...");
-  const schema = await fetchAdminSchema(token);
-  writeCachedSchema(cachePath, schema);
-  return schema;
+  const age = schemaCacheAgeMs(cachePath);
+  const stale = age === null || age > SCHEMA_TTL_MS;
+
+  // 缓存有效、未过期、未强制刷新 → 直接用
+  if (cached && !opts.forceRefresh && !stale) return cached;
+
+  console.error(
+    opts.forceRefresh
+      ? "正在刷新 schema..."
+      : cached
+        ? "schema 缓存已过期，正在刷新..."
+        : "正在拉取 schema...",
+  );
+
+  try {
+    const schema = await fetchAdminSchema(token);
+    writeCachedSchema(cachePath, schema); // 重写文件会刷新 mtime，TTL 计时重置
+    return schema;
+  } catch (err) {
+    // 被动 TTL 过期刷新失败时降级用旧缓存（保证离线可用）；
+    // 显式 forceRefresh（--refresh）则如实抛出，避免谎报“已刷新”。
+    if (cached && !opts.forceRefresh) {
+      console.error(`⚠ schema 刷新失败，暂用旧缓存：${(err as Error).message}`);
+      return cached;
+    }
+    throw err;
+  }
 }
 
 export function buildTypeMap(schema: IntrospectionSchema): Map<string, IntrospectionType> {
