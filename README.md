@@ -4,7 +4,7 @@
 [![npm version](https://img.shields.io/npm/v/@allvalue/open-cli.svg)](https://www.npmjs.com/package/@allvalue/open-cli)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org/)
 
-AllValue 官方 CLI 工具，让人类和 AI Agent 都能在终端中操作 AllValue 电商平台。覆盖商品、订单、库存、营销、履约等核心电商域，支持 25+ Query、40+ Mutation。
+AllValue 官方 CLI 工具，让人类和 AI Agent 都能在终端中操作 AllValue 电商平台。覆盖商品、订单、库存、营销折扣、拼团活动、数据报表、履约等核心电商域，支持 40+ Query、55+ Mutation。
 
 [安装](#安装与快速开始) · [认证](#认证) · [核心场景](#核心场景) · [命令参考](#命令参考) · [进阶用法](#进阶用法)
 
@@ -24,14 +24,19 @@ AllValue 官方 CLI 工具，让人类和 AI Agent 都能在终端中操作 AllV
 
 | 业务域 | 能力 |
 |---|---|
-| 🛒 商品 | 列表、详情、变体查询，批量上下架、创建、更新、删除 |
+| 🛒 商品 | 列表、详情、变体查询，批量上下架、创建、更新、删除，商品分析 |
 | 📦 订单 | 查询、状态筛选、取消、完成、退款、标签管理 |
 | 🚚 履约 | 履约单查询、创建、取消，物流信息更新 |
-| 👥 客户 | 列表、详情、积分查询，创建、更新、删除、邀请邮件 |
+| 👥 客户 | 列表、详情、积分查询，创建、更新、删除、邀请邮件，客户分组（筛选器） |
+| 🎁 折扣 | 自动折扣、折扣码活动的列表/详情，创建、更新、启用/停用、批量删除 |
+| 🎉 营销活动 | 拼团活动与团单查询/管理，一卡一码活动列表/详情、创建、批量停用/删除 |
+| 📊 数据报表 | 数据概况看板、销售报告、渠道分析、商品分析 |
 | 🏪 店铺 | 基本信息、Logo、域名管理、主域名设置 |
+| 📍 门店 | 地点列表与详情 |
 | 🎨 主题 | 主题查询、创建、更新、发布、删除（Web/移动端） |
 | 🔗 Webhook | 监听器注册/删除，事件列表查询与重发 |
 | 📋 草稿单 | 草稿订单创建、查询、完成 |
+| 📤 文件 | 申请预签名上传链接（图片/文件） |
 
 ---
 
@@ -163,6 +168,51 @@ allvalue-open admin product-variant-update \
 
 ---
 
+### 🎁 营销折扣与活动
+
+折扣码、自动折扣、拼团、一卡一码——大促配置交给 Agent，批量上下线一句话搞定。
+
+```bash
+# 折扣码活动列表
+allvalue-open admin discount-activities --variables '{"first":20}'
+
+# 创建折扣码活动（需 --allow-mutations）
+allvalue-open admin discount-activity-create \
+  --variables '{"input":{ ... }}' \
+  --allow-mutations
+
+# 批量停用折扣码活动
+allvalue-open admin discount-activity-bulk-disable \
+  --variables '{"activityIds":["gid://allvalue/DiscountActivity/1"]}' \
+  --allow-mutations
+
+# 拼团活动列表 / 团单
+allvalue-open admin group-activities --variables '{"first":20}'
+allvalue-open admin group-orders --variables '{"first":20}'
+```
+
+> 写侧客户分组用 `admin customer-filters` 取 `customerFilterIds`。各命令的完整参数以 `allvalue-open admin <命令名>` 输出为准。
+
+---
+
+### 📈 经营报表一键拉取
+
+```bash
+# 数据概况看板（整页指标一次取回，dateRange 必填）
+allvalue-open admin data-overview \
+  --variables '{"dateRange":{"beginDate":"2024-01-01","endDate":"2024-01-31"}}'
+
+# 销售报告 / 渠道分析 / 商品分析（同样以 dateRange 为必填参数）
+allvalue-open admin sales-report \
+  --variables '{"dateRange":{"beginDate":"2024-01-01","endDate":"2024-01-31"}}'
+allvalue-open admin channel-report \
+  --variables '{"dateRange":{"beginDate":"2024-01-01","endDate":"2024-01-31"}}'
+allvalue-open admin product-analysis \
+  --variables '{"dateRange":{"beginDate":"2024-01-01","endDate":"2024-01-31"}}'
+```
+
+---
+
 ### 📱 移动端随时查
 
 出差在外，手机问 AI Agent 一句话，秒出结果。
@@ -194,31 +244,51 @@ allvalue-open admin points \
 | `admin fulfillment-create` | 给订单创建履约单 |
 | `admin order-refund` | 订单退款 |
 | `admin product-bulk-on-shelves` | 批量上架商品 |
+| `admin discount-activity-create` | 创建折扣码活动 |
+| `admin group-activity-create` | 创建拼团活动 |
+| `admin sales-report` | 销售数据报告 |
 | `admin webhook-register` | 注册 Webhook 监听 |
 
 <details>
-<summary>查看全部 25+ Query 命令</summary>
+<summary>查看全部 41 个 Query 命令</summary>
 
 | 命令 | 说明 |
 |---|---|
 | `admin affiliate-orders` | 联盟订单查询 |
+| `admin automatic-discount` | 根据 ID 查询自动折扣详情 |
+| `admin automatic-discounts` | 自动折扣列表 |
+| `admin card-code-activities` | 一卡一码活动列表 |
+| `admin card-code-activity` | 根据 ID 查询一卡一码活动详情（含分享链接与码统计） |
+| `admin channel-report` | 渠道数据·访问汇总 |
 | `admin collection` | 根据 ID 查询分组 |
 | `admin collections` | 列出店铺分组 |
 | `admin customer` | 根据 ID 查询客户 |
+| `admin customer-filters` | 列出客户分组（客户筛选器） |
 | `admin customers` | 列出客户列表 |
+| `admin data-overview` | 数据概况看板，一个 query 取回整页指标 |
 | `admin delivery-profile` | 查询具体运费模板 |
 | `admin delivery-profiles` | 查询所有运费模板 |
+| `admin discount-activities` | 折扣码活动列表 |
+| `admin discount-activity` | 根据 ID 查询折扣码活动详情 |
 | `admin domains` | 获取店铺域名信息 |
 | `admin draft-order` | 根据 ID 查询草稿单 |
 | `admin draft-orders` | 列出草稿单列表 |
 | `admin fulfillment` | 根据 ID 查询履约信息 |
 | `admin fulfillment-services` | 查询履约服务商列表 |
+| `admin group-activities` | 拼团活动列表 |
+| `admin group-activity` | 拼团活动详情 |
+| `admin group-order` | 拼团团单详情 |
+| `admin group-orders` | 拼团团单列表 |
+| `admin location` | 根据 ID 查询地点详情 |
+| `admin locations` | 地点列表 |
 | `admin order` | 根据 ID 查询订单详情 |
 | `admin orders` | 列出订单列表 |
 | `admin points` | 根据客户 ID 查询积分 |
 | `admin product` | 根据 ID 查询商品 |
+| `admin product-analysis` | 商品分析 |
 | `admin product-by-handle` | 根据 handle 查询商品 |
 | `admin products` | 列出商品列表 |
+| `admin sales-report` | 销售数据报告落地页 |
 | `admin shop` | 获取店铺信息 |
 | `admin shop-logo` | 获取店铺 Logo |
 | `admin theme` | 根据 ID 查询主题 |
@@ -229,10 +299,18 @@ allvalue-open admin points \
 </details>
 
 <details>
-<summary>查看全部 40+ Mutation 命令</summary>
+<summary>查看全部 56 个 Mutation 命令</summary>
 
 | 命令 | 说明 |
 |---|---|
+| `admin automatic-discount-create` | 创建自动折扣 |
+| `admin automatic-discount-update` | 更新自动折扣 |
+| `admin automatic-discount-enable` | 启用自动折扣 |
+| `admin automatic-discount-disable` | 停用自动折扣 |
+| `admin automatic-discount-bulk-delete` | 批量删除自动折扣 |
+| `admin card-code-activity-create` | 创建一卡一码活动 |
+| `admin card-code-activity-bulk-disable` | 批量停用（结束）一卡一码活动 |
+| `admin card-code-activity-bulk-delete` | 批量删除一卡一码活动 |
 | `admin customer-create` | 创建客户 |
 | `admin customer-delete` | 删除客户 |
 | `admin customer-send-invite-email` | 发送客户邀请邮件 |
@@ -240,13 +318,22 @@ allvalue-open admin points \
 | `admin delivery-profile-create` | 创建运费模板 |
 | `admin delivery-profile-delete` | 删除运费模板 |
 | `admin delivery-profile-update` | 更新运费模板 |
+| `admin discount-activity-create` | 创建折扣码活动 |
+| `admin discount-activity-update` | 编辑折扣码活动 |
+| `admin discount-activity-bulk-enable` | 批量启用折扣码活动 |
+| `admin discount-activity-bulk-disable` | 批量停用折扣码活动 |
+| `admin discount-activity-bulk-delete` | 批量删除折扣码活动 |
 | `admin domain-create` | 创建域名 |
 | `admin domain-delete` | 删除域名 |
 | `admin draft-order-complete` | 完成草稿单 |
 | `admin draft-order-create` | 创建草稿单 |
+| `admin file-uploads-create` | 创建文件上传 |
 | `admin fulfillment-cancel` | 取消履约单 |
 | `admin fulfillment-create` | 创建履约单 |
 | `admin fulfillment-tracking-info-update` | 更新物流跟踪信息 |
+| `admin group-activity-create` | 创建拼团活动（绑定商品 + SKU 拼团价） |
+| `admin group-activity-update` | 编辑拼团活动 |
+| `admin group-activity-stop` | 停止拼团活动 |
 | `admin mobile-theme-create` | 创建移动版主题 |
 | `admin order-cancel` | 取消订单 |
 | `admin order-complete` | 完成订单 |
@@ -261,6 +348,7 @@ allvalue-open admin points \
 | `admin product-create` | 创建商品 |
 | `admin product-update` | 更新商品 |
 | `admin product-variant-update` | 更新商品变体 |
+| `admin staged-upload-create` | 申请预签名上传链接（图片/文件） |
 | `admin storefront-access-token-create` | 创建前端访问 Token |
 | `admin storefront-access-token-delete` | 删除前端访问 Token |
 | `admin theme-delete` | 删除主题 |

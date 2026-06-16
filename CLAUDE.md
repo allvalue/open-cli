@@ -11,6 +11,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 要求 Node >= 22 与系统级 `curl`。项目使用纯 ESM、NodeNext 模块解析，**无任何运行时 npm 依赖**（仅使用 Node 内建模块 + `curl` 子进程）。
 
+## 开放能力域概览
+
+> 仅为高层业务地图，帮助快速判断某能力是否已开放；**不是命令清单**。具体命令、参数随线上 schema 演进，**权威来源**始终是 `node dist/cli.js admin --list`（及 `admin <命令名>` 的帮助），由缓存 schema 动态派生。新增 API 能力无需改代码，重新拉取 schema 即生效（删除 `~/.allvalue-open/admin-schema.json` 后重跑任意命令）。
+
+当前 Admin 侧覆盖的业务域：
+
+- **商品**：商品/变体的查询、批量上下架、增删改，分组（collection），商品分析。
+- **订单**：订单与草稿单、联盟订单（affiliate）的查询，取消/完成/退款，标签管理。
+- **履约**：履约单查询/创建/取消、物流跟踪更新、履约服务商、运费模板（delivery-profile）。
+- **客户**：列表/详情/积分、增删改与邀请邮件，客户分组（customer-filters，作折扣写侧 `customerFilterIds`）。
+- **折扣**：自动折扣（automatic-discount）、折扣码活动（discount-activity）的查询与增删改、启停、批量操作。
+- **营销活动**：拼团（group-activity 及团单 group-order）、一卡一码（card-code-activity）的查询与管理。
+- **数据报表**：数据概况看板（data-overview）、销售报告（sales-report）、渠道分析（channel-report）、商品分析（product-analysis）。
+- **店铺与域名**：店铺信息/Logo、域名管理、主域名设置。
+- **门店/地点**：地点（location）查询。
+- **主题**：Web/移动端主题的查询、增删改与发布。
+- **Webhook**：监听器注册/删除、事件列表与重发。
+- **前端访问**：storefront-access-token 的创建/删除。
+- **文件上传**：预签名上传链接（staged-upload-create）、文件上传（file-uploads-create）。
+
 ## 整体架构
 
 CLI 名为 `allvalue-open`，封装 AllValue Admin GraphQL API。**仓库内不打包静态 schema**——首次使用时对线上端点做 introspection、本地缓存，命令帮助、参数校验、GraphQL 文档生成全部由该缓存 schema 派生。
