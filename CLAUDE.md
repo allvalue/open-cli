@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 开放能力域概览
 
-> 仅为高层业务地图，帮助快速判断某能力是否已开放；**不是命令清单**。具体命令、参数随线上 schema 演进，**权威来源**始终是 `node dist/cli.js admin --list`（及 `admin <命令名>` 的帮助），由缓存 schema 动态派生。新增 API 能力无需改代码，重新拉取 schema 即生效（删除 `~/.allvalue-open/admin-schema.json` 后重跑任意命令）。
+> 仅为高层业务地图，帮助快速判断某能力是否已开放；**不是命令清单**。具体命令、参数随线上 schema 演进，**权威来源**始终是 `node dist/cli.js admin --list`（及 `admin <命令名>` 的帮助），由缓存 schema 动态派生。新增 API 能力无需改代码，重新拉取 schema 即生效：缓存默认 **1 天 TTL**，过期自动刷新（刷新失败则降级用旧缓存），也可用 `admin schema --refresh` 或给任意命令加 `--refresh` 强制重拉。
 
 当前 Admin 侧覆盖的业务域：
 
@@ -54,7 +54,7 @@ CLI 名为 `allvalue-open`，封装 AllValue Admin GraphQL API。**仓库内不�
 
 ### 在通用分发前单独处理的子命令
 
-`admin auth`、`admin --list` / `-l`、`admin schema`（仅打印缓存路径）、`admin query`（原始 GraphQL，绕过校验但仍受 mutation 保护）。
+`admin auth`、`admin --list` / `-l`、`admin schema`（打印缓存路径与年龄，`--refresh` 强制重拉）、`admin query`（原始 GraphQL，绕过校验但仍受 mutation 保护）。`--refresh` 标志对 `--list` 与具体命令同样生效，触发 `loadAdminSchema(token, { forceRefresh: true })`。
 
 ## 编码约定
 

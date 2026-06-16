@@ -8,6 +8,7 @@ import {
   getQueryRoot,
   listFieldsByName,
   loadAdminSchema,
+  schemaCacheAgeMs,
   ADMIN_ENDPOINT,
   type Profile,
 } from "./schema.js";
@@ -135,8 +136,8 @@ function printGlobalHelp(): void {
   allvalue-open admin --list | -l
       列出所有可用命令（简洁模式）。
 
-  allvalue-open admin schema
-      显示 schema 缓存文件路径。
+  allvalue-open admin schema [--refresh]
+      显示 schema 缓存路径与年龄；加 --refresh 强制重新拉取。
 
   allvalue-open admin <命令名>
       显示该命令的详细参数说明。
@@ -155,6 +156,7 @@ function printGlobalHelp(): void {
   • token 优先级: --token > auth 认证的 accessToken。
   • 首次使用请先执行 allvalue-open admin auth 进行认证。
   • schema 首次使用时自动拉取并缓存到 ~/.allvalue-open/admin-schema.json。
+  • schema 缓存超过 1 天自动刷新（刷新失败则降级用旧缓存）；任意命令加 --refresh 可强制重拉。
   • --query-file / --variable-file 支持从文件读取 query 和 variables。
   • Mutation 操作需显式传入 --allow-mutations。
 
@@ -175,8 +177,8 @@ async function resolveToken(values: Record<string, unknown>): Promise<string> {
   return token;
 }
 
-async function handleAdminHelp(token: string): Promise<void> {
-  const schema = await loadAdminSchema(token);
+async function handleAdminHelp(token: string, values: Record<string, unknown>): Promise<void> {
+  const schema = await loadAdminSchema(token, { forceRefresh: !!values.refresh });
   const typeMap = buildTypeMap(schema);
   const qFields = [...(getQueryRoot(schema)?.fields ?? [])];
   const mFields = [...(getMutationRoot(schema)?.fields ?? [])];
@@ -188,7 +190,7 @@ async function handleAdminCommand(
   opToken: string,
   values: Record<string, unknown>,
 ): Promise<void> {
-  const schema = await loadAdminSchema(token);
+  const schema = await loadAdminSchema(token, { forceRefresh: !!values.refresh });
   const typeMap = buildTypeMap(schema);
   const queryFields = listFieldsByName(getQueryRoot(schema));
   const mutationFields = listFieldsByName(getMutationRoot(schema));
@@ -279,6 +281,7 @@ async function main(): Promise<void> {
       endpoint:         { type: "string",  short: "e" },
       token:            { type: "string",  short: "t" },
       list:             { type: "boolean", short: "l" },
+      refresh:          { type: "boolean" },
     },
     allowPositionals: true,
     strict: false,
@@ -314,7 +317,7 @@ async function main(): Promise<void> {
   // --list: list all commands
   if (values.list) {
     const token = await resolveToken(values);
-    await handleAdminHelp(token);
+    await handleAdminHelp(token, values);
     process.exit(0);
   }
 
@@ -330,11 +333,26 @@ async function main(): Promise<void> {
 
   if (opToken === "schema") {
     const cachePath = getAdminSchemaCachePath();
+    if (values.refresh) {
+      try {
+        await loadAdminSchema(token, { forceRefresh: true });
+      } catch (err) {
+        console.error(`✘ schema 刷新失败：${(err as Error)?.message ?? err}`);
+        process.exit(1);
+      }
+      console.log(`✔ schema 已刷新: ${cachePath}`);
+      process.exit(0);
+    }
     if (!existsSync(cachePath)) {
       await loadAdminSchema(token);
     }
+    const age = schemaCacheAgeMs(cachePath);
     console.log(`Schema 缓存文件路径: ${cachePath}`);
-    console.log(`如需重新拉取，请删除该文件后重新执行此命令。`);
+    if (age !== null) {
+      const days = Math.floor(age / 86400000);
+      console.log(`缓存年龄: ${days} 天${days >= 1 ? "（已超过 1 天 TTL，下次执行会自动刷新）" : ""}`);
+    }
+    console.log(`立即刷新: allvalue-open admin schema --refresh`);
     process.exit(0);
   }
 
@@ -347,4 +365,7 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-main();
+main().catch((err) => {
+  console.error(`✘ ${(err as Error)?.message ?? err}`);
+  process.exit(1);
+});

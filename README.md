@@ -369,8 +369,12 @@ allvalue-open admin --list                                    # 列出所有命�
 allvalue-open admin <命令名>                                  # 查看参数说明
 allvalue-open admin <命令名> --variables '<json>'            # 执行查询
 allvalue-open admin query --query '<graphql>'                # 原始 GraphQL 模式
-allvalue-open admin schema                                    # 查看 schema 缓存路径
+allvalue-open admin schema                                    # 查看 schema 缓存路径与年龄
+allvalue-open admin schema --refresh                          # 强制重新拉取 schema
+allvalue-open admin <命令名> --refresh                        # 任意命令均可加 --refresh 重拉
 ```
+
+> schema 缓存超过 **1 天**会在下次执行时自动刷新；刷新失败（如离线）则降级使用旧缓存。
 
 ---
 
